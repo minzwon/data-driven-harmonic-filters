@@ -1,2 +1,3 @@
 training/*.out
-model*
+model_
+*/__pycache__/*
