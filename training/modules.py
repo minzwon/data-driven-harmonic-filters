@@ -179,11 +179,10 @@ class ResNet_mtat(nn.Module):
         self.res4 = self.make_layer(block, conv_channels*2, 2, 2)
         self.res5 = self.make_layer(block, conv_channels*2, 2, 2)
         self.res6 = self.make_layer(block, conv_channels*2, 2, 2)
-        self.res7 = self.make_layer(block, conv_channels*2, 2, 2)
-        self.res8 = self.make_layer(block, conv_channels*4, 2, 2)
+        self.res7 = self.make_layer(block, conv_channels*2, 2, (2,3))
 
         # fully connected
-        self.fc_1 = nn.Linear(conv_channels * 4, conv_channels * 2)
+        self.fc_1 = nn.Linear(conv_channels * 2, conv_channels * 2)
         self.bn = nn.BatchNorm1d(conv_channels * 2)
         self.fc_2 = nn.Linear(conv_channels * 2, self.num_class)
         self.activation = nn.Sigmoid()
@@ -212,7 +211,6 @@ class ResNet_mtat(nn.Module):
         x = self.res5(x)
         x = self.res6(x)
         x = self.res7(x)
-        x = self.res8(x)
         x = x.squeeze(2)
 
         # global max pooling
@@ -243,11 +241,10 @@ class ResNet_mp(nn.Module):
         self.res4 = Conv3_2d_resmp(conv_channels, conv_channels, 2)
         self.res5 = Conv3_2d(conv_channels, conv_channels*2, 2)
         self.res6 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, 2)
-        self.res7 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, 2)
-        self.res8 = Conv3_2d(conv_channels*2, conv_channels*4, 2)
+        self.res7 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, (2, 3))
 
         # fully connected
-        self.fc_1 = nn.Linear(conv_channels * 4, conv_channels * 2)
+        self.fc_1 = nn.Linear(conv_channels * 2, conv_channels * 2)
         self.bn = nn.BatchNorm1d(conv_channels * 2)
         self.fc_2 = nn.Linear(conv_channels * 2, self.num_class)
         self.activation = nn.Sigmoid()
@@ -263,7 +260,6 @@ class ResNet_mp(nn.Module):
         x = self.res5(x)
         x = self.res6(x)
         x = self.res7(x)
-        x = self.res8(x)
         x = x.squeeze(2)
 
         # global max pooling
@@ -280,6 +276,7 @@ class ResNet_mp(nn.Module):
         x = self.activation(x)
 
         return x
+
 
 class Conv3_2d(nn.Module):
     def __init__(self, input_channels, output_channels, pooling=2):
