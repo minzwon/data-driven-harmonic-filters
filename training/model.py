@@ -4,13 +4,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from modules import HarmonicConv, ResNet_mtat, ResNet_mp
+from modules import HarmonicConv, MelSpec, ResNet_mp, ResNet_3D
 
 class Model(nn.Module):
     def __init__(self,
                 conv_channels=128,
                 sample_rate=16000,
-                n_fft=513,
+                n_fft=512,
                 n_harmonic=6,
                 semitone_scale=2,
                 learn_f0=False,
@@ -28,7 +28,7 @@ class Model(nn.Module):
         self.hconv_bn = nn.BatchNorm2d(n_harmonic)
 
         # 2D CNN
-        self.conv_2d = ResNet_mtat(input_channels=n_harmonic,
+        self.conv_2d = ResNet_3D(input_channels=n_harmonic,
                                    conv_channels=conv_channels)
 
     def forward(self, x):

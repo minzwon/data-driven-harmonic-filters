@@ -1,0 +1,94 @@
+Namespace(batch_size=12, conv_channels=128, data_path='/home/minz/Developer/data/mtat/', dataset='mtat', input_length=80000, learn_bw='only_Q', learn_f0=False, log_step=20, lr=0.0001, mode='train', model_load_path='.', model_save_path='./../models/model_256', n_epochs=200, n_fft=256, n_harmonic=6, num_workers=8, sample_rate=16000, semitone_scale=2, use_tensorboard=1)
+train
+[2019-10-19 04:22:22] Epoch [1/200] Iter [20/1271] train loss: 0.6603 Elapsed: 0:00:03.373830
+[2019-10-19 04:22:24] Epoch [1/200] Iter [40/1271] train loss: 0.6024 Elapsed: 0:00:05.868982
+[2019-10-19 04:22:27] Epoch [1/200] Iter [60/1271] train loss: 0.5166 Elapsed: 0:00:08.367330
+[2019-10-19 04:22:29] Epoch [1/200] Iter [80/1271] train loss: 0.4913 Elapsed: 0:00:10.861706
+[2019-10-19 04:22:32] Epoch [1/200] Iter [100/1271] train loss: 0.4189 Elapsed: 0:00:13.359736
+[2019-10-19 04:22:34] Epoch [1/200] Iter [120/1271] train loss: 0.4125 Elapsed: 0:00:15.858925
+[2019-10-19 04:22:37] Epoch [1/200] Iter [140/1271] train loss: 0.3911 Elapsed: 0:00:18.357762
+[2019-10-19 04:22:39] Epoch [1/200] Iter [160/1271] train loss: 0.3307 Elapsed: 0:00:20.857938
+[2019-10-19 04:22:42] Epoch [1/200] Iter [180/1271] train loss: 0.3258 Elapsed: 0:00:23.356552
+[2019-10-19 04:22:44] Epoch [1/200] Iter [200/1271] train loss: 0.3526 Elapsed: 0:00:25.855422
+[2019-10-19 04:22:47] Epoch [1/200] Iter [220/1271] train loss: 0.2865 Elapsed: 0:00:28.354027
+[2019-10-19 04:22:49] Epoch [1/200] Iter [240/1271] train loss: 0.2541 Elapsed: 0:00:30.853588
+[2019-10-19 04:22:52] Epoch [1/200] Iter [260/1271] train loss: 0.2662 Elapsed: 0:00:33.352169
+[2019-10-19 04:22:54] Epoch [1/200] Iter [280/1271] train loss: 0.2727 Elapsed: 0:00:35.850489
+[2019-10-19 04:22:57] Epoch [1/200] Iter [300/1271] train loss: 0.2305 Elapsed: 0:00:38.348287
+[2019-10-19 04:22:59] Epoch [1/200] Iter [320/1271] train loss: 0.2645 Elapsed: 0:00:40.846413
+[2019-10-19 04:23:02] Epoch [1/200] Iter [340/1271] train loss: 0.2612 Elapsed: 0:00:43.347612
+[2019-10-19 04:23:04] Epoch [1/200] Iter [360/1271] train loss: 0.2171 Elapsed: 0:00:45.846569
+[2019-10-19 04:23:07] Epoch [1/200] Iter [380/1271] train loss: 0.2420 Elapsed: 0:00:48.354795
+[2019-10-19 04:23:09] Epoch [1/200] Iter [400/1271] train loss: 0.2633 Elapsed: 0:00:50.858070
+[2019-10-19 04:23:12] Epoch [1/200] Iter [420/1271] train loss: 0.1902 Elapsed: 0:00:53.361414
+[2019-10-19 04:23:14] Epoch [1/200] Iter [440/1271] train loss: 0.2625 Elapsed: 0:00:55.865156
+[2019-10-19 04:23:17] Epoch [1/200] Iter [460/1271] train loss: 0.2509 Elapsed: 0:00:58.371418
+[2019-10-19 04:23:19] Epoch [1/200] Iter [480/1271] train loss: 0.2329 Elapsed: 0:01:00.874920
+[2019-10-19 04:23:22] Epoch [1/200] Iter [500/1271] train loss: 0.2131 Elapsed: 0:01:03.378937
+[2019-10-19 04:23:24] Epoch [1/200] Iter [520/1271] train loss: 0.2020 Elapsed: 0:01:05.882250
+[2019-10-19 04:23:27] Epoch [1/200] Iter [540/1271] train loss: 0.2363 Elapsed: 0:01:08.386297
+[2019-10-19 04:23:29] Epoch [1/200] Iter [560/1271] train loss: 0.2084 Elapsed: 0:01:10.890547
+[2019-10-19 04:23:32] Epoch [1/200] Iter [580/1271] train loss: 0.2155 Elapsed: 0:01:13.399677
+[2019-10-19 04:23:34] Epoch [1/200] Iter [600/1271] train loss: 0.2378 Elapsed: 0:01:15.906639
+[2019-10-19 04:23:37] Epoch [1/200] Iter [620/1271] train loss: 0.1698 Elapsed: 0:01:18.414495
+[2019-10-19 04:23:39] Epoch [1/200] Iter [640/1271] train loss: 0.2075 Elapsed: 0:01:20.921604
+[2019-10-19 04:23:42] Epoch [1/200] Iter [660/1271] train loss: 0.2168 Elapsed: 0:01:23.431244
+[2019-10-19 04:23:44] Epoch [1/200] Iter [680/1271] train loss: 0.2413 Elapsed: 0:01:25.939116
+[2019-10-19 04:23:47] Epoch [1/200] Iter [700/1271] train loss: 0.2322 Elapsed: 0:01:28.447216
+[2019-10-19 04:23:49] Epoch [1/200] Iter [720/1271] train loss: 0.2764 Elapsed: 0:01:30.953734
+[2019-10-19 04:23:52] Epoch [1/200] Iter [740/1271] train loss: 0.1771 Elapsed: 0:01:33.461794
+[2019-10-19 04:23:55] Epoch [1/200] Iter [760/1271] train loss: 0.2499 Elapsed: 0:01:35.968441
+[2019-10-19 04:23:57] Epoch [1/200] Iter [780/1271] train loss: 0.1949 Elapsed: 0:01:38.477293
+[2019-10-19 04:24:00] Epoch [1/200] Iter [800/1271] train loss: 0.2099 Elapsed: 0:01:40.987230
+[2019-10-19 04:24:02] Epoch [1/200] Iter [820/1271] train loss: 0.2121 Elapsed: 0:01:43.498297
+[2019-10-19 04:24:05] Epoch [1/200] Iter [840/1271] train loss: 0.2322 Elapsed: 0:01:46.005769
+[2019-10-19 04:24:07] Epoch [1/200] Iter [860/1271] train loss: 0.2202 Elapsed: 0:01:48.514265
+[2019-10-19 04:24:10] Epoch [1/200] Iter [880/1271] train loss: 0.2491 Elapsed: 0:01:51.021420
+[2019-10-19 04:24:12] Epoch [1/200] Iter [900/1271] train loss: 0.2070 Elapsed: 0:01:53.528501
+[2019-10-19 04:24:15] Epoch [1/200] Iter [920/1271] train loss: 0.2145 Elapsed: 0:01:56.036414
+[2019-10-19 04:24:17] Epoch [1/200] Iter [940/1271] train loss: 0.2769 Elapsed: 0:01:58.543516
+[2019-10-19 04:24:20] Epoch [1/200] Iter [960/1271] train loss: 0.1980 Elapsed: 0:02:01.051065
+[2019-10-19 04:24:22] Epoch [1/200] Iter [980/1271] train loss: 0.1988 Elapsed: 0:02:03.559011
+[2019-10-19 04:24:25] Epoch [1/200] Iter [1000/1271] train loss: 0.2069 Elapsed: 0:02:06.065318
+[2019-10-19 04:24:27] Epoch [1/200] Iter [1020/1271] train loss: 0.2285 Elapsed: 0:02:08.572737
+[2019-10-19 04:24:30] Epoch [1/200] Iter [1040/1271] train loss: 0.2138 Elapsed: 0:02:11.079307
+[2019-10-19 04:24:32] Epoch [1/200] Iter [1060/1271] train loss: 0.1895 Elapsed: 0:02:13.586455
+[2019-10-19 04:24:35] Epoch [1/200] Iter [1080/1271] train loss: 0.1973 Elapsed: 0:02:16.094067
+[2019-10-19 04:24:37] Epoch [1/200] Iter [1100/1271] train loss: 0.1842 Elapsed: 0:02:18.600204
+[2019-10-19 04:24:40] Epoch [1/200] Iter [1120/1271] train loss: 0.1982 Elapsed: 0:02:21.107664
+[2019-10-19 04:24:42] Epoch [1/200] Iter [1140/1271] train loss: 0.2061 Elapsed: 0:02:23.623114
+[2019-10-19 04:24:45] Epoch [1/200] Iter [1160/1271] train loss: 0.2639 Elapsed: 0:02:26.135078
+[2019-10-19 04:24:47] Epoch [1/200] Iter [1180/1271] train loss: 0.2142 Elapsed: 0:02:28.646626
+[2019-10-19 04:24:50] Epoch [1/200] Iter [1200/1271] train loss: 0.2028 Elapsed: 0:02:31.158098
+[2019-10-19 04:24:52] Epoch [1/200] Iter [1220/1271] train loss: 0.2072 Elapsed: 0:02:33.668458
+[2019-10-19 04:24:55] Epoch [1/200] Iter [1240/1271] train loss: 0.1935 Elapsed: 0:02:36.181208
+[2019-10-19 04:24:57] Epoch [1/200] Iter [1260/1271] train loss: 0.1919 Elapsed: 0:02:38.692146
+  0%|          | 0/1529 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "main.py", line 79, in <module>
+    main(config)
+  File "main.py", line 39, in main
+    solver.train()
+  File "/home/minz/Developer/fast-harmonic-cnn/training/solver.py", line 131, in train
+    roc_auc, pr_auc, loss = self.get_validation_auc()
+  File "/home/minz/Developer/fast-harmonic-cnn/training/solver.py", line 218, in get_validation_auc
+    out = self.model(x)
+  File "/home/minz/anaconda3/lib/python3.7/site-packages/torch/nn/modules/module.py", line 547, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/home/minz/Developer/fast-harmonic-cnn/training/model.py", line 39, in forward
+    logits = self.conv_2d(x)
+  File "/home/minz/anaconda3/lib/python3.7/site-packages/torch/nn/modules/module.py", line 547, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/home/minz/Developer/fast-harmonic-cnn/training/modules.py", line 257, in forward
+    x = self.res2(x)
+  File "/home/minz/anaconda3/lib/python3.7/site-packages/torch/nn/modules/module.py", line 547, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/home/minz/Developer/fast-harmonic-cnn/training/modules.py", line 303, in forward
+    out = self.bn_2(self.conv_2(self.relu(self.bn_1(self.conv_1(x)))))
+  File "/home/minz/anaconda3/lib/python3.7/site-packages/torch/nn/modules/module.py", line 547, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/home/minz/anaconda3/lib/python3.7/site-packages/torch/nn/modules/batchnorm.py", line 81, in forward
+    exponential_average_factor, self.eps)
+  File "/home/minz/anaconda3/lib/python3.7/site-packages/torch/nn/functional.py", line 1656, in batch_norm
+    training, momentum, eps, torch.backends.cudnn.enabled
+RuntimeError: CUDA out of memory. Tried to allocate 118.00 MiB (GPU 0; 7.77 GiB total capacity; 5.31 GiB already allocated; 97.25 MiB free; 120.54 MiB cached)

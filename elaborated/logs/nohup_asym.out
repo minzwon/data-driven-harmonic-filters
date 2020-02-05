@@ -1,0 +1,4 @@
+Namespace(batch_size=16, conv_channels=128, data_path='/home/minz/Developer/data/mtat/', dataset='mtat', input_length=80000, learn_bw='only_Q', learn_f0=False, log_step=20, lr=0.0001, mode='train', model_load_path='.', model_save_path='./../models/model_asym', n_epochs=200, n_fft=512, n_harmonic=6, num_workers=1, sample_rate=16000, semitone_scale=2, use_tensorboard=1)
+train
+[2019-10-26 17:19:14] Epoch [1/200] Iter [20/953] train loss: 0.6994 Elapsed: 0:00:03.422516
+[2019-10-26 17:19:18] Epoch [1/200] Iter [40/953] train loss: 0.6802 Elapsed: 0:00:06.509272

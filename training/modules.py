@@ -24,23 +24,40 @@ def hz_to_note(hz):
     return librosa.core.hz_to_note(hz)
 
 def initialize_filterbank(sample_rate, n_harmonic, semitone_scale):
+    # MIDI
     # lowest note
-    low_midi = note_to_midi('C1')
+    low_midi = note_to_midi('C2')
 
     # highest note
     high_note = hz_to_note(sample_rate / (2 * n_harmonic))
     high_midi = note_to_midi(high_note)
 
     # number of scales
-    level = (high_midi - low_midi) * semitone_scale
-    midi = np.linspace(low_midi, high_midi, level + 1)
-    hz = midi_to_hz(midi[:-1])
+#    level = (high_midi - low_midi) * semitone_scale
+    level = 64
+    midi = np.arange(low_midi-1, low_midi+level+1)
 
     # stack harmonics
     harmonic_hz = []
+    lower_hz = []
+    upper_hz = []
     for i in range(n_harmonic):
-        harmonic_hz = np.concatenate((harmonic_hz, hz * (i+1)))
-    return harmonic_hz, level
+        hz = midi_to_hz(midi[1:-1] + 12*i)
+        harmonic_hz = np.concatenate((harmonic_hz, hz))
+        low_hz = midi_to_hz(midi[:-2] + 12*i)
+        lower_hz = np.concatenate((lower_hz, hz))
+        hz = midi_to_hz(midi[2:] + 12*i)
+        upper_hz = np.concatenate((upper_hz, hz))
+
+#    level = 64
+#    low_freq = 0
+#    high_freq = sample_rate / (2 * n_harmonic)
+#    hz = librosa.time_frequency.mel_frequencies(level+2, low_freq, high_freq)[1:-1]
+#    harmonic_hz = []
+#    for i in range(n_harmonic):
+#        harmonic_hz = np.concatenate((harmonic_hz, hz * (i+1)))
+    return harmonic_hz, lower_hz, upper_hz, level
+
 
 class HarmonicConv(nn.Module):
     def __init__(self,
@@ -55,7 +72,7 @@ class HarmonicConv(nn.Module):
                  semitone_scale=2,
                  bw_alpha=0.1079,
                  bw_beta=24.7,
-                 bw_Q=2.0,
+                 bw_Q=1.0,
                  learn_f0=False,
                  learn_bw=None):
         super(HarmonicConv, self).__init__()
@@ -72,37 +89,42 @@ class HarmonicConv(nn.Module):
         self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB()
 
         # Initialize the filterbank. Equally spaced in MIDI scale.
-        harmonic_hz, self.level = initialize_filterbank(sample_rate, n_harmonic, semitone_scale)
+        harmonic_hz, lower_hz, upper_hz, self.level = initialize_filterbank(sample_rate, n_harmonic, semitone_scale)
 
         # Center frequncies to tensor
         if learn_f0:
             self.f0 = nn.Parameter(torch.tensor(harmonic_hz.astype('float32')))
         else:
             self.f0 = torch.tensor(harmonic_hz.astype('float32'))
+            self.lower = torch.tensor(lower_hz.astype('float32'))
+            self.upper = torch.tensor(upper_hz.astype('float32'))
+            self.fft_bins = torch.linspace(0, self.sample_rate//2, n_fft//2+1)
+            self.zero = torch.zeros(1)
+            self.fb = self.get_harmonic_fb()
 
-        # Bandwidth parameters
-        if learn_bw == 'full':
-            self.bw_alpha = nn.Parameter(torch.tensor(np.array([bw_alpha]).astype('float32')))
-            self.bw_beta = nn.Parameter(torch.tensor(np.array([bw_beta]).astype('float32')))
-            self.bw_Q = nn.Parameter(torch.tensor(np.array([bw_Q]).astype('float32')))
-        elif learn_bw == 'only_Q':
-            self.bw_alpha = torch.tensor(np.array([bw_alpha]).astype('float32'))
-            self.bw_beta = torch.tensor(np.array([bw_beta]).astype('float32'))
-            self.bw_Q = nn.Parameter(torch.tensor(np.array([bw_Q]).astype('float32')))
-        else:
-            self.bw_alpha = torch.tensor(np.array([bw_alpha]).astype('float32'))
-            self.bw_beta = torch.tensor(np.array([bw_beta]).astype('float32'))
-            self.bw_Q = torch.tensor(np.array([bw_Q]).astype('float32'))
+#        # Bandwidth parameters
+#        if learn_bw == 'full':
+#            self.bw_alpha = nn.Parameter(torch.tensor(np.array([bw_alpha]).astype('float32')))
+#            self.bw_beta = nn.Parameter(torch.tensor(np.array([bw_beta]).astype('float32')))
+#            self.bw_Q = nn.Parameter(torch.tensor(np.array([bw_Q]).astype('float32')))
+#        elif learn_bw == 'only_Q':
+#            self.bw_alpha = torch.tensor(np.array([bw_alpha]).astype('float32'))
+#            self.bw_beta = torch.tensor(np.array([bw_beta]).astype('float32'))
+#            self.bw_Q = nn.Parameter(torch.tensor(np.array([bw_Q]).astype('float32')))
+#        else:
+#            self.bw_alpha = torch.tensor(np.array([bw_alpha]).astype('float32'))
+#            self.bw_beta = torch.tensor(np.array([bw_beta]).astype('float32'))
+#            self.bw_Q = torch.tensor(np.array([bw_Q]).astype('float32'))
 
     def get_harmonic_fb(self):
         # bandwidth
-        bw = (self.bw_alpha * self.f0 + self.bw_beta) / self.bw_Q
-        bw = bw.unsqueeze(0) # (1, n_band)
         f0 = self.f0.unsqueeze(0) # (1, n_band)
+        low = self.lower.unsqueeze(0)
+        upp = self.upper.unsqueeze(0)
         fft_bins = self.fft_bins.unsqueeze(1) # (n_bins, 1)
 
-        up_slope = torch.matmul(fft_bins, (2/bw)) + 1 - (2 * f0 / bw)
-        down_slope = torch.matmul(fft_bins, (-2/bw)) + 1 + (2 * f0 / bw)
+        up_slope = torch.matmul(fft_bins, 1/(f0-low)) - (low / (f0-low))
+        down_slope = torch.matmul(fft_bins, -1/(upp-f0)) + (upp / (upp-f0))
         fb = torch.max(self.zero, torch.min(down_slope, up_slope))
         return fb
 
@@ -122,11 +144,10 @@ class HarmonicConv(nn.Module):
         spectrogram = self.spec(waveform)
 
         # to device
-        self.to_device(waveform.device, spectrogram.size(1))
+        self.fb = self.fb.to(waveform.device)
 
         # triangle filter
-        harmonic_fb = self.get_harmonic_fb()
-        harmonic_spec = torch.matmul(spectrogram.transpose(1, 2), harmonic_fb).transpose(1, 2)
+        harmonic_spec = torch.matmul(spectrogram.transpose(1, 2), self.fb).transpose(1, 2)
 
         # (batch, channel, length) -> (batch, harmonic, f0, length)
         b, c, l = harmonic_spec.size()
@@ -141,45 +162,55 @@ def conv3x3(in_channels, out_channels, stride=1):
     return nn.Conv2d(in_channels, out_channels, kernel_size=3,
                      stride=stride, padding=1, bias=False)
 
+class MelSpec(nn.Module):
+    def __init__(self,
+                 sample_rate=16000,
+                 n_fft=512,
+                 win_length=None,
+                 hop_length=None,
+                 pad=0,
+                 power=2,
+                 normalized=False,
+                 n_harmonic=6,
+                 semitone_scale=2,
+                 bw_alpha=0.1079,
+                 bw_beta=24.7,
+                 bw_Q=2.0,
+                 learn_f0=False,
+                 learn_bw=None):
+        super(MelSpec, self).__init__()
 
-class ResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
-        super(ResidualBlock, self).__init__()
-        self.conv1 = conv3x3(in_channels, out_channels, stride)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(out_channels, out_channels)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.downsample = downsample
-    def forward(self, x):
-        residual = x
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.conv2(out)
-        out = self.bn2(out)
-        if self.downsample:
-            residual = self.downsample(x)
-        out += residual
-        out = self.relu(out)
-        return out
+        # Parameters
+        self.sample_rate = sample_rate
+        self.n_harmonic = n_harmonic
+
+        self.spec = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, n_fft=n_fft,
+                                                         win_length=win_length, hop_length=hop_length,
+                                                         pad=pad, n_mels=128, window_fn=torch.hann_window,
+                                                         wkwargs=None)
+        self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB()
+
+    def forward(self, waveform):
+        # stft
+        spectrogram = self.spec(waveform)
+        melspec = self.amplitude_to_db(spectrogram)
+        return melspec
 
 
-class ResNet_mtat(nn.Module):
+
+class ResNet_mp(nn.Module):
     def __init__(self, input_channels, conv_channels):
-        super(ResNet_mtat, self).__init__()
-        self.in_channels = input_channels
+        super(ResNet_mp, self).__init__()
         self.num_class = 50
-        block = ResidualBlock
 
         # residual convolution
-        self.res1 = self.make_layer(block, conv_channels, 2, 2)
-        self.res2 = self.make_layer(block, conv_channels, 2, 2)
-        self.res3 = self.make_layer(block, conv_channels, 2, 2)
-        self.res4 = self.make_layer(block, conv_channels*2, 2, 2)
-        self.res5 = self.make_layer(block, conv_channels*2, 2, 2)
-        self.res6 = self.make_layer(block, conv_channels*2, 2, 2)
-        self.res7 = self.make_layer(block, conv_channels*2, 2, (2,3))
+        self.res1 = Conv3_2d(input_channels, conv_channels, 2)
+        self.res2 = Conv3_2d_resmp(conv_channels, conv_channels, 2)
+        self.res3 = Conv3_2d(conv_channels, conv_channels*2, 2)
+        self.res4 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, 2)
+        self.res5 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, 2)
+        self.res6 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, (2,3))
+        self.res7 = Conv3_1d_resmp(conv_channels*2, conv_channels*2, 3)
 
         # fully connected
         self.fc_1 = nn.Linear(conv_channels * 2, conv_channels * 2)
@@ -189,19 +220,6 @@ class ResNet_mtat(nn.Module):
         self.dropout = nn.Dropout(0.5)
         self.relu = nn.ReLU()
 
-    def make_layer(self, block, out_channels, blocks, stride=1):
-        downsample = None
-        if (stride != 1) or (self.in_channels != out_channels):
-            downsample = nn.Sequential(
-                conv3x3(self.in_channels, out_channels, stride=stride),
-                nn.BatchNorm2d(out_channels))
-        layers = []
-        layers.append(block(self.in_channels, out_channels, stride, downsample))
-        self.in_channels = out_channels
-        for i in range(1, blocks):
-            layers.append(block(out_channels, out_channels))
-        return nn.Sequential(*layers)
-
     def forward(self, x):
         # residual convolution
         x = self.res1(x)
@@ -210,8 +228,8 @@ class ResNet_mtat(nn.Module):
         x = self.res4(x)
         x = self.res5(x)
         x = self.res6(x)
-        x = self.res7(x)
         x = x.squeeze(2)
+        x = self.res7(x)
 
         # global max pooling
         if x.size(-1) != 1:
@@ -229,19 +247,19 @@ class ResNet_mtat(nn.Module):
         return x
 
 
-class ResNet_mp(nn.Module):
+class ResNet_3D(nn.Module):
     def __init__(self, input_channels, conv_channels):
-        super(ResNet_mp, self).__init__()
+        super(ResNet_3D, self).__init__()
         self.num_class = 50
 
         # residual convolution
-        self.res1 = Conv3_2d(input_channels, conv_channels, 2)
+        self.res1 = Conv3_3d(1, conv_channels, 2)
         self.res2 = Conv3_2d_resmp(conv_channels, conv_channels, 2)
-        self.res3 = Conv3_2d_resmp(conv_channels, conv_channels, 2)
-        self.res4 = Conv3_2d_resmp(conv_channels, conv_channels, 2)
-        self.res5 = Conv3_2d(conv_channels, conv_channels*2, 2)
-        self.res6 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, 2)
-        self.res7 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, (2, 3))
+        self.res3 = Conv3_2d(conv_channels, conv_channels*2, 2)
+        self.res4 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, 2)
+        self.res5 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, 2)
+        self.res6 = Conv3_2d_resmp(conv_channels*2, conv_channels*2, (2,3))
+        self.res7 = Conv3_1d_resmp(conv_channels*2, conv_channels*2, 3)
 
         # fully connected
         self.fc_1 = nn.Linear(conv_channels * 2, conv_channels * 2)
@@ -259,8 +277,8 @@ class ResNet_mp(nn.Module):
         x = self.res4(x)
         x = self.res5(x)
         x = self.res6(x)
-        x = self.res7(x)
         x = x.squeeze(2)
+        x = self.res7(x)
 
         # global max pooling
         if x.size(-1) != 1:
@@ -290,6 +308,37 @@ class Conv3_2d(nn.Module):
         return out
 
 
+class Conv3_3d(nn.Module):
+    def __init__(self, input_channels, output_channels, pooling=2):
+        super(Conv3_3d, self).__init__()
+        self.conv = nn.Conv3d(1, output_channels, (6,3,3), padding=(0,1,1))
+        self.bn = nn.BatchNorm3d(output_channels)
+        self.relu = nn.ReLU()
+        self.mp = nn.MaxPool2d(pooling)
+    def forward(self, x):
+        x = x.unsqueeze(1)
+        x = self.relu(self.bn(self.conv(x)))
+        x = x.squeeze(2)
+        out = self.mp(x)
+        return out
+
+
+class Conv_3d_resmp(nn.Module):
+    def __init__(self, input_channels, output_channels, pooling=2):
+        super(Conv3_3d_resmp, self).__init__()
+        self.conv_1 = nn.Conv2d(input_channels, output_channels, 3, padding=1)
+        self.bn_1 = nn.BatchNorm2d(output_channels)
+        self.conv_2 = nn.Conv2d(output_channels, output_channels, 3, padding=1)
+        self.bn_2 = nn.BatchNorm2d(output_channels)
+        self.relu = nn.ReLU()
+        self.mp = nn.MaxPool2d(pooling)
+    def forward(self, x):
+        out = self.bn_2(self.conv_2(self.relu(self.bn_1(self.conv_1(x)))))
+        out = out + x
+        out = self.mp(self.relu(out))
+        return out
+
+
 class Conv3_2d_resmp(nn.Module):
     def __init__(self, input_channels, output_channels, pooling=2):
         super(Conv3_2d_resmp, self).__init__()
@@ -299,6 +348,21 @@ class Conv3_2d_resmp(nn.Module):
         self.bn_2 = nn.BatchNorm2d(output_channels)
         self.relu = nn.ReLU()
         self.mp = nn.MaxPool2d(pooling)
+    def forward(self, x):
+        out = self.bn_2(self.conv_2(self.relu(self.bn_1(self.conv_1(x)))))
+        out = x + out
+        out = self.mp(self.relu(out))
+        return out
+
+class Conv3_1d_resmp(nn.Module):
+    def __init__(self, input_channels, output_channels, pooling=2):
+        super(Conv3_1d_resmp, self).__init__()
+        self.conv_1 = nn.Conv1d(input_channels, output_channels, 3, padding=1)
+        self.bn_1 = nn.BatchNorm1d(output_channels)
+        self.conv_2 = nn.Conv1d(output_channels, output_channels, 3, padding=1)
+        self.bn_2 = nn.BatchNorm1d(output_channels)
+        self.relu = nn.ReLU()
+        self.mp = nn.MaxPool1d(pooling)
     def forward(self, x):
         out = self.bn_2(self.conv_2(self.relu(self.bn_1(self.conv_1(x)))))
         out = x + out

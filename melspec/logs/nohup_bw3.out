@@ -1,0 +1,15 @@
+Namespace(batch_size=16, conv_channels=128, data_path='/home/minz/Developer/data/mtat/', dataset='mtat', input_length=80000, learn_bw='only_Q', learn_f0=False, log_step=20, lr=0.0001, mode='train', model_load_path='.', model_save_path='./../models/model_bw3', n_epochs=200, n_fft=512, n_harmonic=6, num_workers=8, sample_rate=16000, semitone_scale=2, use_tensorboard=1)
+Traceback (most recent call last):
+  File "main.py", line 79, in <module>
+    main(config)
+  File "main.py", line 35, in main
+    solver = Solver(data_loader, config)
+  File "/home/minz/Developer/fast-harmonic-cnn/training/solver.py", line 51, in __init__
+    self.build_model()
+  File "/home/minz/Developer/fast-harmonic-cnn/training/solver.py", line 70, in build_model
+    self.model = self.get_model()
+  File "/home/minz/Developer/fast-harmonic-cnn/training/solver.py", line 66, in get_model
+    dataset=self.dataset)
+  File "/home/minz/Developer/fast-harmonic-cnn/training/model.py", line 27, in __init__
+    learn_bw=learn_bw)
+TypeError: __init__() got an unexpected keyword argument 'sample_rate'
