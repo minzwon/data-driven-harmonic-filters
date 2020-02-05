@@ -112,6 +112,7 @@ class Solver(object):
             # train
             ctr = 0
             drop_counter += 1
+            self.model.cuda()
             self.model.train()
             for x, y in self.data_loader:
                 ctr += 1
