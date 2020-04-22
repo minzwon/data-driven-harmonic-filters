@@ -2,10 +2,10 @@
 import os
 import time
 import numpy as np
+import pandas as pd
 from sklearn import metrics
 import datetime
 import tqdm
-import _pickle as pkl
 
 import torch
 import torch.nn as nn
@@ -22,7 +22,6 @@ class Solver(object):
         self.data_loader = data_loader
         self.dataset = config.dataset
         self.data_path = config.data_path
-        self.get_dataset()
 
         # model hyper-parameters
         self.conv_channels = config.conv_channels
@@ -30,7 +29,6 @@ class Solver(object):
         self.n_fft = config.n_fft
         self.n_harmonic = config.n_harmonic
         self.semitone_scale = config.semitone_scale
-        self.learn_f0 = config.learn_f0
         self.learn_bw = config.learn_bw
 
         # training settings
@@ -48,20 +46,28 @@ class Solver(object):
         self.is_cuda = torch.cuda.is_available()
 
         # Build model
+        self.get_dataset()
         self.build_model()
 
     def get_dataset(self):
         if self.dataset == 'mtat':
-            self.valid_list = np.load(os.path.join(self.data_path, 'data/valid_new.npy'))
-            self.binary = np.load(os.path.join(self.data_path, 'data/binary.npy'))
+            self.valid_list = np.load(os.path.join(self.data_path, 'mtat', 'valid.npy'))
+            self.binary = np.load(os.path.join(self.data_path, 'mtat', 'binary.npy'))
+        elif self.dataset == 'dcase':
+            df = pd.read_csv(os.path.join(self.data_path, 'dcase', 'df.csv'), delimiter='\t', names=['file', 'start', 'end', 'path', 'split', 'label'])
+            df = df[df['split'] == 'val']
+            self.valid_list = list(df['path'])
+            self.binary = list(df['label'])
+        elif self.dataset == 'keyword':
+            from data_loader.keyword_loader import get_audio_loader
+            self.valid_loader = get_audio_loader(self.data_path, self.batch_size, input_length = self.input_length, tr_val='val')
 
     def get_model(self):
-        return Model(conv_channels=128,
+        return Model(conv_channels=self.conv_channels,
                      sample_rate=self.sample_rate,
                      n_fft=self.n_fft,
                      n_harmonic=self.n_harmonic,
                      semitone_scale=self.semitone_scale,
-                     learn_f0=self.learn_f0,
                      learn_bw=self.learn_bw,
                      dataset=self.dataset)
 
@@ -81,70 +87,83 @@ class Solver(object):
         self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr, weight_decay=1e-4)
 
     def load(self, filename):
-        #temp = self.model.hconv.spec.mel_scale.fb
-        #self.model.hconv.spec.mel_scale.fb = torch.zeros(257, 128)
         S = torch.load(filename)
         self.model.load_state_dict(S)
-        #self.model.hconv.spec.mel_scale.fb = temp
 
     def to_var(self, x):
         if torch.cuda.is_available():
             x = x.cuda()
         return Variable(x)
 
-    def train(self):
-        # Reconst loss
-        reconst_loss = nn.BCELoss()
+    def get_loss_function(self):
+        if self.dataset == 'mtat' or self.dataset == 'dcase':
+            return nn.BCELoss()
+        elif self.dataset == 'keyword':
+            return nn.CrossEntropyLoss()
 
+    def train(self):
         # Start training
         start_t = time.time()
         current_optimizer = 'adam'
+        reconst_loss = self.get_loss_function()
         best_metric = 0
         drop_counter = 0
         for epoch in range(self.n_epochs):
             # train
             ctr = 0
             drop_counter += 1
+            self.model.cuda()
             self.model.train()
             for x, y in self.data_loader:
                 ctr += 1
-                try:
-                    # Forward
-                    x = self.to_var(x)
-                    y = self.to_var(y)
-                    out = self.model(x)
+                # Forward
+                x = self.to_var(x)
+                y = self.to_var(y)
+                out = self.model(x)
 
-                    # Backward
-                    loss = reconst_loss(out, y)
-                    self.optimizer.zero_grad()
-                    loss.backward()
-                    self.optimizer.step()
+                # Backward
+                loss = reconst_loss(out, y)
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
-                    # Log
-                    if (ctr) % self.log_step == 0:
-                        print("[%s] Epoch [%d/%d] Iter [%d/%d] train loss: %.4f Elapsed: %s" %
-                                (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                    epoch+1, self.n_epochs, ctr, len(self.data_loader), loss.item(),
-                                    datetime.timedelta(seconds=time.time()-start_t)))
-                except ValueError:
-                    print("drop last!")
-                    continue
+                # Log
+                if (ctr) % self.log_step == 0:
+                    print("[%s] Epoch [%d/%d] Iter [%d/%d] train loss: %.4f Elapsed: %s" %
+                            (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                epoch+1, self.n_epochs, ctr, len(self.data_loader), loss.item(),
+                                datetime.timedelta(seconds=time.time()-start_t)))
 
             # validation
-            roc_auc, pr_auc, loss = self.get_validation_auc()
-
-            # save model
-            score = 1 - loss
-            score = roc_auc
-            if score > best_metric:
-                print('best model!')
-                best_metric = score
-                torch.save(self.model.state_dict(), os.path.join(self.model_save_path, 'best_model.pth'))
+            if self.dataset == 'mtat':
+                roc_auc, pr_auc, loss = self.get_validation_score()
+                score = 1 - loss
+                if score > best_metric:
+                    print('best model!')
+                    best_metric = score
+                    torch.save(self.model.state_dict(), os.path.join(self.model_save_path, 'best_model.pth'))
+            elif self.dataset == 'dcase':
+                if epoch > 10:
+                    f1, loss = self.get_validation_score()
+                    score = 1 - loss
+                    score = f1
+                else:
+                    score = 0
+                if score > best_metric:
+                    print('best model!')
+                    best_metric = score
+                    torch.save(self.model.state_dict(), os.path.join(self.model_save_path, 'best_model.pth'))
+            elif self.dataset == 'keyword':
+                acc, loss = self.get_validation_acc()
+                score = 1 - loss
+                if score > best_metric:
+                    print('best model: %.4f' % acc)
+                    best_metric = score
+                    torch.save(self.model.state_dict(), os.path.join(self.model_save_path, 'best_model.pth'))
 
             # schedule optimizer
             current_optimizer, drop_counter = self.opt_schedule(current_optimizer, drop_counter)
 
-        torch.save(self.model.state_dict(), os.path.join(self.model_save_path, 'last_model.pth'))
         print("[%s] Train finished. Elapsed: %s"
                 % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     datetime.timedelta(seconds=time.time() - start_t)))
@@ -188,26 +207,37 @@ class Solver(object):
     def get_tensor(self, fn):
         # load audio
         if self.dataset == 'mtat':
-            raw_path = os.path.join(self.data_path, 'raw', fn.split('/')[1][:-3]) + 'npy'
-        raw = np.load(raw_path, mmap_mode='r')
+            npy_path = os.path.join(self.data_path, 'mtat', 'npy', fn.split('/')[1][:-3]) + 'npy'
+        elif self.dataset == 'dcase':
+            npy_path = fn
+        raw = np.load(npy_path, mmap_mode='r')
 
         # split chunk
         length = len(raw)
+        if length < self.input_length:
+            nnpy = np.zeros(self.input_length)
+            ri = int(np.floor(np.random.random(1) * (self.input_length - length)))
+            nnpy[ri:ri+length] = raw
+            raw = nnpy
+            length = len(raw)
         hop = (length - self.input_length) // self.batch_size
         x = torch.zeros(self.batch_size, self.input_length)
         for i in range(self.batch_size):
             x[i] = torch.Tensor(raw[i*hop:i*hop+self.input_length]).unsqueeze(0)
         return x
 
-    def get_validation_auc(self):
+    def get_validation_score(self):
         self.model.eval()
         est_array = []
         gt_array = []
         losses = []
-        reconst_loss = nn.BCELoss()
+        reconst_loss = self.get_loss_function()
+        index = 0
         for line in tqdm.tqdm(self.valid_list):
             if self.dataset == 'mtat':
                 ix, fn = line.split('\t')
+            elif self.dataset == 'dcase':
+                fn = line
 
             # load and split
             x = self.get_tensor(fn)
@@ -215,6 +245,8 @@ class Solver(object):
             # ground truth
             if self.dataset == 'mtat':
                 ground_truth = self.binary[int(ix)]
+            elif self.dataset == 'dcase':
+                ground_truth = np.fromstring(self.binary[index][1:-1], dtype=np.float32, sep=' ')
 
             # forward
             x = self.to_var(x)
@@ -229,10 +261,43 @@ class Solver(object):
             est_array.append(estimated)
 
             gt_array.append(ground_truth)
+            index += 1
 
         est_array, gt_array = np.array(est_array), np.array(gt_array)
         loss = np.mean(losses)
         print('loss: %.4f' % loss)
-        roc_auc, pr_auc = self.get_auc(est_array, gt_array)
-        return roc_auc, pr_auc, loss
 
+        if self.dataset == 'mtat':
+            roc_auc, pr_auc = self.get_auc(est_array, gt_array)
+            return roc_auc, pr_auc, loss
+        elif self.dataset == 'dcase':
+            prd_array = (est_array > 0.1).astype(np.float32)
+            f1 = metrics.f1_score(gt_array, prd_array, average='samples')
+            print('f1: %.4f' % f1)
+            return f1, loss
+
+    def get_validation_acc(self):
+        self.model.eval()
+        reconst_loss = self.get_loss_function()
+        est_array = []
+        gt_array = []
+        losses = []
+        for x, y in tqdm.tqdm(self.valid_loader):
+            x = self.to_var(x)
+            y = self.to_var(y)
+            out = self.model(x)
+            loss = reconst_loss(out, y)
+            losses.append(float(loss.data))
+            out = out.detach().cpu()
+            y = y.detach().cpu()
+            _prd = [int(np.argmax(prob)) for prob in out]
+            for i in range(len(_prd)):
+                est_array.append(_prd[i])
+                gt_array.append(y[i])
+        est_array = np.array(est_array)
+        gt_array = np.array(gt_array)
+        acc = metrics.accuracy_score(gt_array, est_array)
+        loss = np.mean(losses)
+        print('accuracy: %.4f' % acc)
+        print('loss: %.4f' % loss)
+        return acc, loss

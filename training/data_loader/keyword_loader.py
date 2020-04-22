@@ -37,7 +37,7 @@ def get_audio_loader(root, batch_size, num_workers=0, input_length=None, tr_val=
 	data_loader = data.DataLoader(dataset=AudioFolder(root, input_length=input_length, tr_val=tr_val),
 								  batch_size=batch_size,
 								  shuffle=True,
-								  drop_last=False,
+								  drop_last=True,
 								  num_workers=num_workers)
 	return data_loader
 
